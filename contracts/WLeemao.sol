@@ -1,37 +1,31 @@
 //SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.0;
+pragma solidity 0.8.19;
 
-import "./Leemao.sol";
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-contract LeemaoWrapper {
+contract LeemaoWrapper is ERC20 {
+    IERC20 public Leemao;
+    
+    constructor(address _leemao) ERC20("WRAPPED_LEEMAO_TOKEN", "WLTN") {
+        Leemao = IERC20(_leemao);
+    }
 
-  LeemaoToken public immutable leemaoToken;
+function wrapLeemao(uint256 _amount) external {
+    bool transferSuccess = Leemao.transferFrom(msg.sender, address(this), _amount);
+    require(transferSuccess, "Transfer failed");
 
-  constructor(address _leemaoToken) {
-    leemaoToken = LeemaoToken(_leemaoToken);
-  }
+    uint256 amountToMint = (_amount * 92) / 100;
 
-  mapping(address => uint) public balances;
+    _mint(msg.sender, amountToMint);
+}
 
-  function wrap(uint _amount) external {
-    leemaoToken.transferFrom(msg.sender, address(this), _amount);
-    balances[msg.sender] += _amount;
-  }
+function unwrapLeemao(uint256 _amount) external {
+    require(balanceOf(msg.sender) >= _amount, "Insufficient balance");
 
-  function unwrap(uint _amount) external {
-    require(balances[msg.sender] >= _amount, "Insufficient balance");
-    balances[msg.sender] -= _amount;
-    leemaoToken.transfer(msg.sender, _amount);
-  }
+    _burn(msg.sender, _amount);
 
-  function transfer(address _to, uint _amount) external {
-    require(balances[msg.sender] >= _amount, "Insufficient balance");
-    balances[msg.sender] -= _amount;
-    balances[_to] += _amount;
-  }
-
-  function balanceOf(address _owner) external view returns (uint) {
-    return balances[_owner]; 
-  }
-
+    require(Leemao.transfer(msg.sender, _amount), "Transfer failed");
+}
+    
 }
